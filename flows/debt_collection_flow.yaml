@@ -1,0 +1,308 @@
+# debt_collection_flow.yaml
+# --------------------------
+# Pipecat Flows configuration for the debt collection voice agent.
+# Defines conversation states, transitions, and LLM instructions per node.
+
+version: "1.0"
+name: "DebtCollectionFlow"
+description: "Structured conversation flow for outbound debt collection calls"
+
+# ── Global Settings ────────────────────────────────────────────────────────
+settings:
+  allow_interruptions: true
+  end_of_speech_timeout_ms: 1200
+  vad_threshold: 0.6
+  max_silence_duration_ms: 8000
+  turn_timeout_seconds: 30
+
+# ── Flow Nodes ─────────────────────────────────────────────────────────────
+nodes:
+
+  # 1. Opening / Verification
+  - id: greeting
+    type: conversation
+    is_start: true
+    description: "Introduce yourself and verify you're speaking to the customer"
+    llm_instructions: |
+      Greet the customer warmly. Say exactly:
+      "Hello, may I please speak with {customer_name}?"
+      
+      If confirmed: proceed to debt_introduction.
+      If wrong person: apologize and transition to wrong_person.
+      If voicemail/no response: transition to voicemail.
+    transitions:
+      - condition: "customer confirmed identity"
+        next: debt_introduction
+      - condition: "wrong person"
+        next: wrong_person
+      - condition: "no response after 10 seconds"
+        next: call_end
+
+  # 2. Debt Introduction
+  - id: debt_introduction
+    type: conversation
+    description: "Inform the customer about their overdue balance"
+    llm_instructions: |
+      Introduce the reason for your call:
+      "Hi {customer_name}, this is Sarah calling from Riverline Credit Services.
+       I'm reaching out regarding your account ending in {account_suffix}, 
+       which has an outstanding balance of ${debt_amount} that is {days_overdue} days past due.
+       I wanted to connect with you today to help resolve this."
+      
+      Then ask an open-ended question: 
+      "Can you share what's been going on?"
+      
+      Listen carefully to the response:
+      - If they say they can pay → transition to payment_collection
+      - If they cannot pay → transition to negotiation_full_payment
+      - If they dispute → transition to dispute_handling
+      - If they claim already paid → transition to already_paid_handling
+      - If they're angry → transition to de_escalation
+    transitions:
+      - condition: "customer willing to pay full amount"
+        next: payment_collection
+      - condition: "customer cannot pay in full"
+        next: negotiation_full_payment
+      - condition: "customer disputes the debt"
+        next: dispute_handling
+      - condition: "customer claims already paid"
+        next: already_paid_handling
+      - condition: "customer is angry or hostile"
+        next: de_escalation
+      - condition: "customer requests opt-out"
+        next: opt_out
+
+  # 3. Negotiation – Full Payment Attempt
+  - id: negotiation_full_payment
+    type: conversation
+    description: "Attempt to secure full payment commitment"
+    llm_instructions: |
+      Ask if the customer can pay the full ${debt_amount} today by card or bank transfer.
+      Mention: "We accept all major credit cards, debit cards, or ACH bank transfer."
+      
+      If they can pay: transition to payment_collection.
+      If they can't pay in full: transition to negotiation_partial.
+      If refusal: transition to negotiation_partial.
+    transitions:
+      - condition: "customer agrees to full payment"
+        next: payment_collection
+      - condition: "customer cannot afford full payment"
+        next: negotiation_partial
+      - condition: "customer refuses"
+        next: negotiation_partial
+
+  # 4. Negotiation – Partial Payment
+  - id: negotiation_partial
+    type: conversation
+    description: "Offer 50% partial payment"
+    llm_instructions: |
+      Empathetically offer a partial payment:
+      "I completely understand. How about we start with ${partial_amount} today, 
+       which is half of your balance, and we can arrange the rest for 30 days from now?"
+      
+      Emphasize this helps their credit standing.
+    transitions:
+      - condition: "customer agrees to partial payment"
+        next: payment_collection
+      - condition: "customer refuses partial payment"
+        next: negotiation_extension
+
+  # 5. Negotiation – Extension
+  - id: negotiation_extension
+    type: conversation
+    description: "Offer a due date extension"
+    llm_instructions: |
+      Offer a time extension:
+      "What if we simply moved your due date? I can give you a 30-day extension — 
+       no extra fees — so you'd have until {extension_date} to pay the full ${debt_amount}."
+    transitions:
+      - condition: "customer accepts extension"
+        next: confirm_arrangement
+      - condition: "customer refuses extension"
+        next: negotiation_installment
+
+  # 6. Negotiation – Installment Plan
+  - id: negotiation_installment
+    type: conversation
+    description: "Offer monthly installment plan"
+    llm_instructions: |
+      Present the installment plan options:
+      "We do have a payment plan option. You could pay ${installment_3m}/month 
+       for 3 months, or ${installment_6m}/month for 6 months if that's easier.
+       Which of those might work for your budget?"
+    transitions:
+      - condition: "customer chooses 3-month plan"
+        next: confirm_arrangement
+      - condition: "customer chooses 6-month plan"
+        next: confirm_arrangement
+      - condition: "customer refuses all plans"
+        next: hardship_arrangement
+
+  # 7. Hardship Arrangement
+  - id: hardship_arrangement
+    type: conversation
+    description: "Last resort: hardship plan for very difficult cases"
+    llm_instructions: |
+      Express understanding and offer the hardship plan:
+      "I hear you, and I want to help. In cases of genuine financial hardship, 
+       we do have a 12-month arrangement at just ${installment_12m}/month. 
+       This is the most flexible option we have available. 
+       Would this work for your current situation?"
+    transitions:
+      - condition: "customer agrees to hardship plan"
+        next: confirm_arrangement
+      - condition: "customer still refuses"
+        next: final_refusal
+
+  # 8. Payment Collection
+  - id: payment_collection
+    type: conversation
+    description: "Collect payment details or direct to payment portal"
+    llm_instructions: |
+      Say: "Wonderful! I can take your payment over the phone, or I can send you 
+      a secure payment link via text or email. Which would you prefer?"
+      
+      If phone payment: "I'll transfer you to our secure payment line now."
+      If link: "What's the best number/email for that link?"
+      
+      Confirm the amount and date.
+    transitions:
+      - condition: "payment confirmed"
+        next: call_closing
+      - condition: "customer wants link sent"
+        next: confirm_arrangement
+
+  # 9. Confirm Arrangement
+  - id: confirm_arrangement
+    type: conversation
+    description: "Summarize and confirm the agreed arrangement"
+    llm_instructions: |
+      Clearly summarize what was agreed:
+      "Just to confirm: [restate the arrangement — amount, dates, method]. 
+       Is that all correct?"
+      
+      If confirmed: "Perfect. You'll receive a confirmation by [email/text]. 
+      Thank you so much, {customer_name}. We really appreciate you working with us."
+      
+      Transition to call_closing.
+    transitions:
+      - condition: "customer confirms"
+        next: call_closing
+      - condition: "customer changes mind"
+        next: negotiation_full_payment
+
+  # 10. De-escalation
+  - id: de_escalation
+    type: conversation
+    description: "Handle angry or frustrated customers"
+    llm_instructions: |
+      Respond with full empathy. Do NOT mention money immediately.
+      Say: "I completely understand your frustration, and I sincerely apologize 
+      for any inconvenience. I'm here to help, not to add to your stress. 
+      Can you help me understand what's going on so we can find the best path forward?"
+      
+      Listen and acknowledge before introducing any solutions.
+      Use a softer, slower tone.
+    transitions:
+      - condition: "customer calms down"
+        next: debt_introduction
+      - condition: "customer requests opt-out"
+        next: opt_out
+      - condition: "customer hangs up"
+        next: call_end
+
+  # 11. Dispute Handling
+  - id: dispute_handling
+    type: conversation
+    description: "Handle debt disputes professionally"
+    llm_instructions: |
+      Respond calmly:
+      "I understand, and I appreciate you letting me know. 
+       If you believe there's an error with this account, you have the right to dispute it. 
+       I'll flag this for our disputes department and they'll send you written verification 
+       within 5 business days. In the meantime, collection activity will be paused. 
+       Can I confirm your mailing address?"
+    transitions:
+      - condition: "address confirmed"
+        next: call_closing
+      - condition: "customer provides no information"
+        next: call_closing
+
+  # 12. Already Paid
+  - id: already_paid_handling
+    type: conversation
+    description: "Handle customer claiming they already paid"
+    llm_instructions: |
+      Respond professionally:
+      "I appreciate you telling me that. I want to look into this right away. 
+       Can you tell me approximately when you made that payment and what method you used? 
+       I'll make a note and have our accounts team verify and clear this up within 1–2 business days. 
+       You'll receive a confirmation once resolved."
+    transitions:
+      - condition: "customer provides payment details"
+        next: call_closing
+      - condition: "customer cannot provide details"
+        next: call_closing
+
+  # 13. Opt-Out
+  - id: opt_out
+    type: conversation
+    description: "Honor opt-out requests immediately"
+    llm_instructions: |
+      Say immediately: "Absolutely, I completely respect your request. 
+      I'll make a note right now to remove you from our call list. 
+      You will not receive any more calls from us regarding this matter. 
+      Is there anything else you'd like me to note before I let you go?"
+      
+      Log opt-out in conversation state.
+    transitions:
+      - condition: "any response"
+        next: call_end
+
+  # 14. Final Refusal
+  - id: final_refusal
+    type: conversation
+    description: "Close call after exhausting all options"
+    llm_instructions: |
+      Remain professional:
+      "I understand, {customer_name}. I've noted your response. 
+       Please be aware that this account may be subject to further collection activity. 
+       However, our door is always open — you can reach us at 1-800-555-0100 if your 
+       situation changes. Thank you for your time today."
+    transitions:
+      - condition: "any response"
+        next: call_end
+
+  # 15. Wrong Person
+  - id: wrong_person
+    type: conversation
+    description: "Handle wrong person / wrong number"
+    llm_instructions: |
+      Say: "I'm so sorry to have bothered you. I'll make sure to update our records. 
+      Have a great day!"
+    transitions:
+      - condition: "any"
+        next: call_end
+
+  # 16. Call Closing
+  - id: call_closing
+    type: conversation
+    description: "Wrap up the call professionally"
+    llm_instructions: |
+      Close warmly: "Thank you so much for your time today, {customer_name}. 
+      I hope we've been able to help. If you have any questions, 
+      don't hesitate to call us at 1-800-555-0100. 
+      Have a wonderful [morning/afternoon/evening]!"
+    transitions:
+      - condition: "any response"
+        next: call_end
+
+  # 17. Call End (Terminal)
+  - id: call_end
+    type: terminal
+    description: "End of call — triggers post-call processing"
+    on_enter:
+      - action: save_transcript
+      - action: generate_summary
+      - action: predict_risk
+      - action: download_recording

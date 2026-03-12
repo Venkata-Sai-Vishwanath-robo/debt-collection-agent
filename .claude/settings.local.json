@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"style\\\\|theme\\\\|color\\\\|css\" \"/c/Users/dvsv2/OneDrive/Desktop/debt-collection-agent/debt-collection-agent-v2\" --include=\"*.py\" --include=\"*.html\" --include=\"*.json\" --exclude-dir=venv 2>/dev/null | head -50)",
+      "Bash(find \"/c/Users/dvsv2/OneDrive/Desktop/debt-collection-agent/debt-collection-agent-v2\" -not -path \"*/venv/*\" -not -path \"*/__pycache__/*\" -type f \\\\\\( -name \"*.py\" -o -name \"*.js\" -o -name \"*.ts\" \\\\\\) 2>/dev/null | head -30)",
+      "Bash(grep -r \"style\\\\|className\\\\|color.*=\" \"/c/Users/dvsv2/OneDrive/Desktop/debt-collection-agent/debt-collection-agent-v2\" --include=\"*.py\" --exclude-dir=venv 2>/dev/null | head -30)"
+    ]
+  }
+}

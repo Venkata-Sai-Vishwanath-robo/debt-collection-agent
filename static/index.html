@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Premier Credit Recovery — Operator Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #ffffff;
+      --card:      #f7f7f7;
+      --border:    #e0e0e0;
+      --accent:    #000000;
+      --accent2:   #222222;
+      --success:   #16a34a;
+      --warning:   #d97706;
+      --danger:    #dc2626;
+      --info:      #2563eb;
+      --text:      #111111;
+      --subtext:   #666666;
+      --radius:    12px;
+      --shadow:    0 1px 8px rgba(0,0,0,0.07);
+    }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    button { cursor: pointer; font-family: inherit; }
+    input, select { font-family: inherit; }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--card); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ────────────────────────────────────────────────────────────── */
+    .header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-logo {
+      width: 36px; height: 36px;
+      background: #000000;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: 800; color: white;
+    }
+    .header-title {
+      font-size: 1.1rem; font-weight: 700; letter-spacing: 0.02em;
+    }
+    .header-subtitle {
+      font-size: 0.72rem; color: var(--subtext); margin-top: 1px;
+    }
+    .header-stats {
+      display: flex; gap: 12px; align-items: center;
+    }
+    .stat-badge {
+      display: flex; flex-direction: column; align-items: center;
+      background: #f0f0f0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 14px;
+      min-width: 72px;
+    }
+    .stat-badge .stat-val {
+      font-size: 1.2rem; font-weight: 700; line-height: 1;
+    }
+    .stat-badge .stat-lbl {
+      font-size: 0.65rem; color: var(--subtext); margin-top: 2px; white-space: nowrap;
+    }
+    .stat-badge.active   .stat-val { color: var(--success); }
+    .stat-badge.total    .stat-val { color: var(--info); }
+    .stat-badge.rate     .stat-val { color: var(--warning); }
+    .stat-badge.highrisk .stat-val { color: var(--danger); }
+    .btn-new-call {
+      background: #000000;
+      color: white; border: none;
+      padding: 9px 18px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 600;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: none;
+    }
+    .btn-new-call:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-new-call:active { transform: translateY(0); }
+    .btn-bulk-upload {
+      background: #222222;
+      color: white; border: none;
+      padding: 9px 18px; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      box-shadow: none;
+    }
+    .btn-bulk-upload:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    /* ── Queue Status Bar ──────────────────────────────────────────────────── */
+    #queue-bar {
+      background: #f7f7f7; border-bottom: 1px solid var(--border);
+      padding: 8px 24px; display: flex; align-items: center;
+      justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .qbar-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .qbar-title { font-weight: 700; font-size: 0.82rem; color: var(--text); }
+    .qbar-stat { font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; background: var(--border); color: var(--subtext); }
+    .qbar-calling { background: rgba(255,177,66,.15); color: var(--warning); }
+    .qbar-done    { background: rgba(0,209,102,.15);  color: var(--success); }
+    .qbar-fail    { background: rgba(255,82,82,.15);  color: var(--danger); }
+    .qbar-right { display: flex; align-items: center; gap: 8px; }
+    .qbar-progress-wrap { width: 120px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .qbar-progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s; width: 0%; }
+    .qbar-btn { padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--card); color: var(--text); transition: background .15s; }
+    .qbar-btn:hover { background: var(--border); }
+    .qbar-btn-start { background: var(--success); color: #000; border-color: var(--success); }
+    .qbar-btn-pause { background: var(--warning); color: #000; border-color: var(--warning); }
+    .qbar-btn-clear { background: var(--danger);  color: #fff; border-color: var(--danger); }
+
+    /* ── Bulk Upload Modal ─────────────────────────────────────────────────── */
+    .bulk-modal-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; width: 720px; max-width: 96vw;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 12px;
+      padding: 40px 24px; text-align: center; cursor: pointer;
+      transition: border-color .2s, background .2s;
+    }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(0,0,0,.04); }
+    .drop-zone-icon { font-size: 2.5rem; margin-bottom: 8px; }
+    .drop-zone-text { color: var(--subtext); font-size: 0.85rem; }
+    .drop-zone-text strong { color: var(--accent); cursor: pointer; }
+    .preview-table-wrap { max-height: 260px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); margin-top: 14px; }
+    .preview-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .preview-table th { background: #f0f0f0; padding: 7px 10px; text-align: left; color: var(--subtext); font-weight: 600; position: sticky; top: 0; }
+    .preview-table td { padding: 6px 10px; border-top: 1px solid var(--border); color: var(--text); }
+    .preview-table tr:hover td { background: rgba(0,0,0,.03); }
+    .bulk-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+    .queue-detail-table-wrap { max-height: 400px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
+    .qs-status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .qs-pending  { background: var(--subtext); }
+    .qs-calling  { background: var(--warning); }
+    .qs-initiated{ background: var(--success); }
+    .qs-failed   { background: var(--danger); }
+
+    /* ── Main Layout ───────────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 300px 1fr 280px;
+      gap: 20px;
+      padding: 20px;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    @media (max-width: 1100px) {
+      .main { grid-template-columns: 260px 1fr; }
+      .col-right { display: none; }
+    }
+    @media (max-width: 720px) {
+      .main { grid-template-columns: 1fr; }
+      .col-left { order: -1; }
+    }
+
+    /* ── Card ──────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .card-title {
+      font-size: 0.85rem; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; color: var(--subtext);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.75); }
+    }
+
+    /* ── Active Calls ──────────────────────────────────────────────────────── */
+    #active-calls-list { display: flex; flex-direction: column; gap: 10px; }
+    .call-card {
+      background: #f0f0f0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      transition: border-color 0.2s;
+    }
+    .call-card:hover { border-color: #999999; }
+    .call-card-name {
+      font-size: 0.95rem; font-weight: 700; margin-bottom: 4px;
+    }
+    .call-card-amount {
+      font-size: 0.8rem; color: var(--subtext); margin-bottom: 8px;
+    }
+    .call-card-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 6px;
+    }
+    .call-card-meta {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .duration-badge {
+      font-size: 0.75rem; background: rgba(0,0,0,0.06);
+      padding: 2px 8px; border-radius: 20px; font-family: monospace;
+    }
+    .btn-view-t {
+      background: #e8e8e8; color: var(--text);
+      border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+      transition: background 0.15s;
+    }
+    .btn-view-t:hover { background: #d0d0d0; }
+    .empty-state {
+      text-align: center; padding: 32px 12px;
+      color: var(--subtext); font-size: 0.82rem;
+    }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+
+    /* ── Sentiment Badge ───────────────────────────────────────────────────── */
+    .sentiment-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; letter-spacing: 0.03em;
+    }
+    .s-cooperative { background: rgba(0,209,102,0.15); color: var(--success); border: 1px solid rgba(0,209,102,0.3); }
+    .s-neutral      { background: rgba(136,146,176,0.15); color: var(--subtext); border: 1px solid rgba(136,146,176,0.3); }
+    .s-frustrated   { background: rgba(255,177,66,0.15); color: var(--warning); border: 1px solid rgba(255,177,66,0.3); }
+    .s-anger        { background: rgba(255,82,82,0.15); color: var(--danger); border: 1px solid rgba(255,82,82,0.3); }
+
+    /* ── Call History ──────────────────────────────────────────────────────── */
+    .col-center { min-width: 0; }
+    .history-controls {
+      display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .search-box {
+      flex: 1; min-width: 160px;
+      background: #ffffff; border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      padding: 8px 12px; font-size: 0.82rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .search-box:focus { border-color: var(--accent); }
+    .filter-select {
+      background: #ffffff; border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      padding: 8px 10px; font-size: 0.82rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .filter-select:focus { border-color: var(--accent); }
+    .history-table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse; font-size: 0.82rem;
+    }
+    thead th {
+      text-align: left; padding: 10px 12px;
+      color: var(--subtext); font-weight: 600; font-size: 0.72rem;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: rgba(0,0,0,0.03); }
+    tbody td {
+      padding: 10px 12px; vertical-align: middle;
+    }
+    .td-name { font-weight: 600; }
+    .td-amount { font-variant-numeric: tabular-nums; }
+    .pagination {
+      display: flex; justify-content: flex-end; align-items: center;
+      gap: 6px; margin-top: 14px;
+    }
+    .page-btn {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); padding: 5px 10px; border-radius: 6px;
+      font-size: 0.78rem; transition: border-color 0.15s;
+    }
+    .page-btn:hover, .page-btn.active { border-color: var(--accent); color: var(--accent); }
+    .page-info { font-size: 0.78rem; color: var(--subtext); padding: 0 4px; }
+
+    /* ── Outcome Badges ────────────────────────────────────────────────────── */
+    .outcome-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 3px 8px;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .o-promise      { background: rgba(0,209,102,0.15); color: var(--success); border: 1px solid rgba(0,209,102,0.3); }
+    .o-refused      { background: rgba(255,82,82,0.15); color: var(--danger); border: 1px solid rgba(255,82,82,0.3); }
+    .o-dispute      { background: rgba(255,177,66,0.15); color: var(--warning); border: 1px solid rgba(255,177,66,0.3); }
+    .o-paid         { background: rgba(56,189,248,0.15); color: var(--info); border: 1px solid rgba(56,189,248,0.3); }
+    .o-optout       { background: rgba(0,0,0,0.06); color: #555555; border: 1px solid rgba(0,0,0,0.15); }
+    .o-inprogress   { background: rgba(0,0,0,0.06); color: var(--text); border: 1px solid rgba(0,0,0,0.15); }
+    .o-unknown      { background: rgba(136,146,176,0.1); color: var(--subtext); border: 1px solid rgba(136,146,176,0.2); }
+
+    /* ── Right Column ──────────────────────────────────────────────────────── */
+    .col-right { display: flex; flex-direction: column; gap: 16px; }
+    .quick-stats { display: flex; flex-direction: column; gap: 8px; }
+    .qs-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px;
+      background: #f0f0f0;
+      border: 1px solid var(--border); border-radius: 8px;
+    }
+    .qs-label { font-size: 0.78rem; color: var(--subtext); }
+    .qs-val { font-size: 0.95rem; font-weight: 700; }
+    .chart-container { position: relative; height: 180px; }
+
+    /* ── Toast ─────────────────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 24px; right: 24px;
+      display: flex; flex-direction: column; gap: 8px; z-index: 9999;
+    }
+    .toast {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px;
+      min-width: 260px; max-width: 360px;
+      box-shadow: var(--shadow);
+      display: flex; align-items: flex-start; gap: 10px;
+      animation: slide-in 0.25s ease;
+      border-left: 3px solid var(--accent);
+    }
+    .toast.success { border-left-color: var(--success); }
+    .toast.error   { border-left-color: var(--danger); }
+    .toast.warning { border-left-color: var(--warning); }
+    .toast-icon { font-size: 1rem; margin-top: 1px; }
+    .toast-text { flex: 1; font-size: 0.82rem; line-height: 1.4; }
+    .toast-title { font-weight: 700; margin-bottom: 2px; }
+    @keyframes slide-in { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ── Modal Overlay ─────────────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000; padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.open { display: flex; }
+
+    /* ── New Call Modal ────────────────────────────────────────────────────── */
+    .modal-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      width: 100%; max-width: 440px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      animation: modal-in 0.2s ease;
+    }
+    @keyframes modal-in { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .modal-title {
+      font-size: 1.1rem; font-weight: 700; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 0.78rem; color: var(--subtext); margin-bottom: 5px; display: block; font-weight: 600; }
+    .form-input {
+      width: 100%; background: #ffffff;
+      border: 1px solid var(--border); border-radius: 8px;
+      color: var(--text); padding: 9px 12px; font-size: 0.85rem;
+      outline: none; transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--accent); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel {
+      flex: 1; background: #f0f0f0; border: 1px solid var(--border);
+      color: var(--text); padding: 10px; border-radius: 8px; font-size: 0.85rem;
+      font-weight: 600; transition: background 0.15s;
+    }
+    .btn-cancel:hover { background: #e0e0e0; }
+    .btn-submit {
+      flex: 2; background: #000000;
+      border: none; color: white; padding: 10px; border-radius: 8px;
+      font-size: 0.85rem; font-weight: 700; transition: opacity 0.2s;
+      box-shadow: none;
+    }
+    .btn-submit:hover { opacity: 0.88; }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Transcript Modal ──────────────────────────────────────────────────── */
+    .transcript-modal {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; width: 100%;
+      max-width: 980px; max-height: 90vh;
+      display: flex; flex-direction: column;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      animation: modal-in 0.2s ease;
+      overflow: hidden;
+    }
+    .t-modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      background: #f7f7f7;
+    }
+    .t-modal-name { font-size: 1.1rem; font-weight: 700; }
+    .t-modal-meta { font-size: 0.78rem; color: var(--subtext); margin-top: 2px; }
+    .t-modal-close {
+      background: #f0f0f0; border: 1px solid var(--border);
+      color: var(--text); width: 32px; height: 32px; border-radius: 50%;
+      font-size: 1rem; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .t-modal-close:hover { background: #e0e0e0; color: var(--danger); }
+    .t-modal-body {
+      flex: 1; display: grid; grid-template-columns: 1fr 320px;
+      min-height: 0; overflow: hidden;
+    }
+    @media (max-width: 700px) {
+      .t-modal-body { grid-template-columns: 1fr; }
+      .t-modal-right { display: none; }
+    }
+    .t-transcript-panel {
+      padding: 16px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
+      border-right: 1px solid var(--border);
+    }
+    .t-turn {
+      display: flex;
+      gap: 8px;
+    }
+    .t-turn.agent { flex-direction: row-reverse; }
+    .t-bubble {
+      max-width: 75%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.82rem; line-height: 1.5;
+    }
+    .t-turn.customer .t-bubble {
+      background: #f0f0f0;
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 3px;
+    }
+    .t-turn.agent .t-bubble {
+      background: #111111;
+      color: #ffffff;
+      border: 1px solid #333333;
+      border-bottom-right-radius: 3px;
+    }
+    .t-bubble-label {
+      font-size: 0.68rem; font-weight: 700; margin-bottom: 3px;
+      text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7;
+    }
+    .t-bubble-sentiment {
+      font-size: 0.68rem; margin-top: 4px; opacity: 0.7;
+    }
+    .t-modal-right {
+      padding: 16px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    /* ── Payment Likelihood card ── */
+    .likelihood-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .lk-header { padding: 8px 14px; font-size: 0.72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--subtext); border-bottom: 1px solid var(--border); }
+    .lk-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .lk-gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .lk-gauge { width: 110px; }
+    .lk-pct { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+    .lk-label { font-size: 0.78rem; font-weight: 600; opacity: .85; }
+    .cb-block { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-radius: 8px; font-size: 0.78rem; line-height: 1.4; }
+    .cb-block strong { font-size: 0.82rem; }
+    .cb-go { background: rgba(0,209,102,.08); border: 1px solid rgba(0,209,102,.2); }
+    .cb-stop { background: rgba(255,82,82,.08); border: 1px solid rgba(255,82,82,.2); }
+    .cb-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+    .cb-tag { background: var(--border); border-radius: 4px; padding: 1px 5px; font-size: 0.7rem; }
+    .cb-time { color: var(--info); font-weight: 600; }
+    .cb-reason { color: var(--subtext); font-size: 0.72rem; }
+    .detail-section-title {
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--subtext); margin-bottom: 8px;
+    }
+    .detail-grid { display: flex; flex-direction: column; gap: 6px; }
+    .detail-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.8rem;
+    }
+    .detail-key { color: var(--subtext); }
+    .detail-val { font-weight: 600; text-align: right; max-width: 60%; }
+    .t-chart-container { position: relative; height: 160px; }
+
+    /* ── Action Button ─────────────────────────────────────────────────────── */
+    .btn-view {
+      background: #e8e8e8; color: var(--text);
+      border: 1px solid var(--border);
+      padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-view:hover { background: #d0d0d0; border-color: #aaaaaa; }
+
+    /* ── Footer ────────────────────────────────────────────────────────────── */
+    footer {
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.72rem; color: var(--subtext);
+    }
+    .footer-status {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .conn-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--subtext);
+    }
+    .conn-dot.connected { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .conn-dot.error { background: var(--danger); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="header">
+  <div class="header-brand">
+    <div class="header-logo">P</div>
+    <div>
+      <div class="header-title">Premier Credit Recovery</div>
+      <div class="header-subtitle">Operator Control Portal</div>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-badge active">
+      <span class="stat-val" id="hdr-active">0</span>
+      <span class="stat-lbl">Active Calls</span>
+    </div>
+    <div class="stat-badge total">
+      <span class="stat-val" id="hdr-total">0</span>
+      <span class="stat-lbl">Total Today</span>
+    </div>
+    <div class="stat-badge rate">
+      <span class="stat-val" id="hdr-rate">0%</span>
+      <span class="stat-lbl">Payment Rate</span>
+    </div>
+    <div class="stat-badge highrisk">
+      <span class="stat-val" id="hdr-risk">0</span>
+      <span class="stat-lbl">High Risk</span>
+    </div>
+    <button class="btn-new-call" onclick="openNewCallModal()">+ New Call</button>
+    <button class="btn-bulk-upload" onclick="openBulkModal()">📊 Bulk Upload</button>
+  </div>
+</header>
+
+<!-- ── Queue Status Bar (shown when queue has items) ─────────────────────── -->
+<div id="queue-bar" style="display:none;">
+  <div class="qbar-left">
+    <span class="qbar-title">📋 Call Queue</span>
+    <span class="qbar-stat" id="qbar-pending">0 pending</span>
+    <span class="qbar-stat qbar-calling" id="qbar-calling">0 calling</span>
+    <span class="qbar-stat qbar-done" id="qbar-done">0 done</span>
+    <span class="qbar-stat qbar-fail" id="qbar-fail">0 failed</span>
+  </div>
+  <div class="qbar-right">
+    <div class="qbar-progress-wrap"><div class="qbar-progress-fill" id="qbar-fill"></div></div>
+    <button class="qbar-btn qbar-btn-start" id="qbar-start-btn" onclick="queueStart()">▶ Start</button>
+    <button class="qbar-btn qbar-btn-pause" id="qbar-pause-btn" onclick="queuePause()" style="display:none;">⏸ Pause</button>
+    <button class="qbar-btn qbar-btn-clear" onclick="queueClear()">🗑 Clear</button>
+    <button class="qbar-btn" onclick="openQueueDetailModal()">Details</button>
+  </div>
+</div>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Left: Active Calls -->
+  <div class="col-left">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <span class="live-dot"></span>
+          Active Calls
+        </span>
+        <span id="active-count-badge" style="font-size:0.75rem;color:var(--subtext);">0 live</span>
+      </div>
+      <div id="active-calls-list">
+        <div class="empty-state">
+          <div class="icon">📞</div>
+          <div>No active calls</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Call History -->
+  <div class="col-center">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Call History</span>
+      </div>
+      <div class="history-controls">
+        <input class="search-box" type="text" id="search-input" placeholder="Search customer name..." oninput="applyFilters()" />
+        <select class="filter-select" id="outcome-filter" onchange="applyFilters()">
+          <option value="">All Outcomes</option>
+          <option value="promise_to_pay">Promise to Pay</option>
+          <option value="refused">Refused</option>
+          <option value="dispute">Dispute</option>
+          <option value="already_paid">Already Paid</option>
+          <option value="opt_out">Opt-Out</option>
+          <option value="voicemail">Voicemail</option>
+          <option value="wrong_person">Wrong Person</option>
+          <option value="in_progress">In Progress</option>
+        </select>
+      </div>
+      <div class="history-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Outcome</th>
+              <th>Sentiment</th>
+              <th>Duration</th>
+              <th>Date/Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--subtext);">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+
+  <!-- Right: Stats + Chart -->
+  <div class="col-right">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Quick Stats</span>
+      </div>
+      <div class="quick-stats">
+        <div class="qs-item">
+          <span class="qs-label">Total Sessions</span>
+          <span class="qs-val" id="qs-total">—</span>
+        </div>
+        <div class="qs-item">
+          <span class="qs-label">Completed</span>
+          <span class="qs-val" id="qs-completed">—</span>
+        </div>
+        <div class="qs-item">
+          <span class="qs-label">Payment Rate</span>
+          <span class="qs-val" id="qs-rate" style="color:var(--warning);">—</span>
+        </div>
+        <div class="qs-item">
+          <span class="qs-label">Avg Risk Score</span>
+          <span class="qs-val" id="qs-risk">—</span>
+        </div>
+        <div class="qs-item">
+          <span class="qs-label">Disputes</span>
+          <span class="qs-val" id="qs-disputes" style="color:var(--warning);">—</span>
+        </div>
+        <div class="qs-item">
+          <span class="qs-label">Refusals</span>
+          <span class="qs-val" id="qs-refused" style="color:var(--danger);">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Sentiment Mix</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="sentiment-chart"></canvas>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<footer>
+  <span>Premier Credit Recovery Operator Portal v2.0.0</span>
+  <div class="footer-status">
+    <span class="conn-dot" id="conn-dot"></span>
+    <span id="conn-label">Connecting...</span>
+  </div>
+</footer>
+
+<!-- ── Toast Container ────────────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- ── New Call Modal ─────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="new-call-modal">
+  <div class="modal-box">
+    <div class="modal-title">📞 Initiate New Call</div>
+    <form id="new-call-form" onsubmit="submitNewCall(event)">
+      <div class="form-group">
+        <label class="form-label">To Number (E.164)</label>
+        <input class="form-input" type="text" name="to_number" placeholder="+15551234567" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Customer Name</label>
+        <input class="form-input" type="text" name="customer_name" placeholder="John Smith" required />
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Debt Amount ($)</label>
+          <input class="form-input" type="number" name="debt_amount" step="0.01" min="0" placeholder="420.00" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Days Overdue</label>
+          <input class="form-input" type="number" name="days_overdue" min="0" value="30" required />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Account Number</label>
+        <input class="form-input" type="text" name="account_number" placeholder="ACC-9823" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeNewCallModal()">Cancel</button>
+        <button type="submit" class="btn-submit" id="submit-btn">Call Now</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Transcript Modal ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="transcript-modal">
+  <div class="transcript-modal">
+    <div class="t-modal-header">
+      <div>
+        <div class="t-modal-name" id="t-modal-name">—</div>
+        <div class="t-modal-meta" id="t-modal-meta">—</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span id="t-modal-outcome-badge"></span>
+        <button class="t-modal-close" onclick="closeTranscriptModal()">✕</button>
+      </div>
+    </div>
+    <div class="t-modal-body">
+      <div class="t-transcript-panel" id="t-transcript-panel">
+        <div style="text-align:center;padding:32px;color:var(--subtext);">Loading transcript...</div>
+      </div>
+      <div class="t-modal-right">
+        <div id="t-likelihood-section" style="display:none;"></div>
+        <div>
+          <div class="detail-section-title">Call Details</div>
+          <div class="detail-grid" id="t-detail-grid"></div>
+        </div>
+        <div>
+          <div class="detail-section-title">Sentiment Distribution</div>
+          <div class="t-chart-container">
+            <canvas id="transcript-sentiment-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════════════ */
+let allSessions = [];         // [{session_id, status, customer_name, ...}]
+let activeSessions = {};      // {session_id: sessionObj} — currently live
+let filteredSessions = [];    // after search/filter
+let currentPage = 1;
+const PAGE_SIZE = 10;
+let sentimentChartInstance = null;
+let transcriptSentimentChartInstance = null;
+let openTranscriptSessionId = null;
+let sseSource = null;
+let sseReconnectDelay = 1000;
+let durationTimers = {};      // {session_id: intervalId}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  initSentimentChart();
+  loadSessions();
+  loadStats();
+  initSSE();
+  loadQueueStatus();
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      closeTranscriptModal();
+      closeNewCallModal();
+      closeBulkModal();
+      closeQueueDetailModal();
+    }
+  });
+
+  // Bulk upload drop zone
+  const dropZone = document.getElementById('drop-zone');
+  if (dropZone) {
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleDrop(e.dataTransfer.files); });
+    dropZone.addEventListener('click', () => document.getElementById('bulk-file-input').click());
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SSE
+══════════════════════════════════════════════════════════════════════════ */
+function initSSE() {
+  if (sseSource) { sseSource.close(); sseSource = null; }
+
+  sseSource = new EventSource('/api/stream');
+
+  sseSource.addEventListener('open', () => {
+    setConnStatus(true);
+    sseReconnectDelay = 1000;
+  });
+
+  sseSource.addEventListener('error', () => {
+    setConnStatus(false);
+    sseSource.close();
+    sseSource = null;
+    setTimeout(() => {
+      sseReconnectDelay = Math.min(sseReconnectDelay * 2, 30000);
+      initSSE();
+    }, sseReconnectDelay);
+  });
+
+  sseSource.addEventListener('snapshot', e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.sessions) {
+        data.sessions.forEach(s => upsertSession(s));
+        renderAll();
+        loadStats();
+      }
+    } catch(err) { console.warn('snapshot parse error', err); }
+  });
+
+  sseSource.addEventListener('session_created', e => {
+    try {
+      const data = JSON.parse(e.data);
+      upsertSession(data);
+      renderAll();
+      showToast('New Call', `Calling ${data.customer_name || '—'}`, 'info');
+    } catch(err) {}
+  });
+
+  sseSource.addEventListener('session_update', e => {
+    try {
+      const data = JSON.parse(e.data);
+      upsertSession(data);
+      renderAll();
+    } catch(err) {}
+  });
+
+  sseSource.addEventListener('sentiment_update', e => {
+    try {
+      const data = JSON.parse(e.data);
+      const sid = data.session_id;
+      if (sid && activeSessions[sid]) {
+        activeSessions[sid].sentiment = data.label || activeSessions[sid].sentiment;
+        updateActiveCallCard(sid);
+      }
+    } catch(err) {}
+  });
+
+  sseSource.addEventListener('transcript_update', e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (openTranscriptSessionId && data.session_id === openTranscriptSessionId && data.turn) {
+        appendTranscriptTurn(data.turn);
+      }
+    } catch(err) {}
+  });
+
+  sseSource.addEventListener('session_complete', e => {
+    try {
+      const data = JSON.parse(e.data);
+      const sid = data.session_id;
+      if (sid && activeSessions[sid]) {
+        activeSessions[sid].status = 'completed';
+        activeSessions[sid].call_outcome = data.call_outcome;
+      }
+      const sess = findSession(sid);
+      if (sess) {
+        sess.status = 'completed';
+        sess.call_outcome = data.call_outcome;
+        sess.sentiment = data.sentiment;
+      }
+      renderAll();
+      loadStats();
+      showToast('Call Complete', `${data.customer_name || '—'} — ${formatOutcome(data.call_outcome)}`, 'success');
+    } catch(err) {}
+  });
+
+  sseSource.addEventListener('ping', () => {});
+
+  sseSource.addEventListener('queue_update', e => {
+    try {
+      const data = JSON.parse(e.data);
+      updateQueueBar(data);
+    } catch(err) {}
+  });
+}
+
+function setConnStatus(connected) {
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-label');
+  dot.className = 'conn-dot' + (connected ? ' connected' : ' error');
+  lbl.textContent = connected ? 'Live' : 'Reconnecting...';
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DATA LOADING
+══════════════════════════════════════════════════════════════════════════ */
+async function loadSessions() {
+  try {
+    const res = await fetch('/api/sessions');
+    if (!res.ok) throw new Error(res.statusText);
+    const sessions = await res.json();
+    sessions.forEach(s => upsertSession(s));
+    renderAll();
+  } catch(err) {
+    console.warn('loadSessions error', err);
+  }
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    if (!res.ok) return;
+    const stats = await res.json();
+    document.getElementById('hdr-active').textContent  = stats.active_sessions  || 0;
+    document.getElementById('hdr-total').textContent   = stats.total_sessions   || 0;
+    document.getElementById('hdr-rate').textContent    = ((stats.payment_rate||0)*100).toFixed(1)+'%';
+    const outcomes = stats.outcomes || {};
+    const highRisk = (outcomes['refused']||0) + (outcomes['dispute']||0);
+    document.getElementById('hdr-risk').textContent    = highRisk;
+
+    document.getElementById('qs-total').textContent     = stats.total_sessions ?? '—';
+    document.getElementById('qs-completed').textContent = stats.completed_sessions ?? '—';
+    document.getElementById('qs-rate').textContent      = ((stats.payment_rate||0)*100).toFixed(1)+'%';
+    document.getElementById('qs-risk').textContent      = stats.avg_risk_score != null ? stats.avg_risk_score.toFixed(3) : '—';
+    document.getElementById('qs-disputes').textContent  = outcomes['dispute'] ?? 0;
+    document.getElementById('qs-refused').textContent   = outcomes['refused'] ?? 0;
+
+    updateSentimentChart();
+  } catch(err) {
+    console.warn('loadStats error', err);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SESSION HELPERS
+══════════════════════════════════════════════════════════════════════════ */
+function upsertSession(data) {
+  const sid = data.session_id;
+  if (!sid) return;
+  const existing = findSession(sid);
+  if (existing) {
+    Object.assign(existing, data);
+  } else {
+    allSessions.unshift(data);
+  }
+  const isActive = ['ringing','answered','in_progress'].includes(data.status);
+  if (isActive) {
+    activeSessions[sid] = activeSessions[sid] ? Object.assign(activeSessions[sid], data) : data;
+    if (!durationTimers[sid]) {
+      activeSessions[sid]._startTs = activeSessions[sid]._startTs || Date.now();
+      durationTimers[sid] = setInterval(() => updateDurationDisplay(sid), 1000);
+    }
+  } else {
+    if (durationTimers[sid]) {
+      clearInterval(durationTimers[sid]);
+      delete durationTimers[sid];
+    }
+    if (activeSessions[sid]) delete activeSessions[sid];
+  }
+}
+
+function findSession(sid) {
+  return allSessions.find(s => s.session_id === sid);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RENDER ALL
+══════════════════════════════════════════════════════════════════════════ */
+function renderAll() {
+  renderActiveCalls();
+  applyFilters();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ACTIVE CALLS PANEL
+══════════════════════════════════════════════════════════════════════════ */
+function renderActiveCalls() {
+  const list = document.getElementById('active-calls-list');
+  const badge = document.getElementById('active-count-badge');
+  const activeArr = Object.values(activeSessions);
+  badge.textContent = `${activeArr.length} live`;
+
+  if (activeArr.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📞</div><div>No active calls</div></div>';
+    document.getElementById('hdr-active').textContent = 0;
+    return;
+  }
+  document.getElementById('hdr-active').textContent = activeArr.length;
+
+  list.innerHTML = '';
+  activeArr.forEach(s => {
+    const card = buildActiveCard(s);
+    list.appendChild(card);
+  });
+}
+
+function buildActiveCard(s) {
+  const sid = s.session_id;
+  const card = document.createElement('div');
+  card.className = 'call-card';
+  card.id = `active-card-${sid}`;
+
+  const sentiment = s.sentiment || 'neutral';
+  const sentClass = getSentimentClass(sentiment);
+  const sentLabel = getSentimentLabel(sentiment);
+  const elapsed = s._startTs ? Math.floor((Date.now() - s._startTs) / 1000) : 0;
+
+  card.innerHTML = `
+    <div class="call-card-name">${escHtml(s.customer_name || '—')}</div>
+    <div class="call-card-amount">$${formatMoney(s.debt_amount)} overdue</div>
+    <div class="call-card-footer">
+      <div class="call-card-meta">
+        <span class="duration-badge" id="dur-${sid}">${formatDuration(elapsed)}</span>
+        <span class="sentiment-badge ${sentClass}" id="sent-${sid}">${sentLabel}</span>
+      </div>
+      <button class="btn-view-t" onclick="showTranscript('${sid}')">Transcript</button>
+    </div>
+  `;
+  return card;
+}
+
+function updateActiveCallCard(sid) {
+  const s = activeSessions[sid];
+  if (!s) return;
+  const sentEl = document.getElementById(`sent-${sid}`);
+  if (sentEl) {
+    const sentiment = s.sentiment || 'neutral';
+    sentEl.className = `sentiment-badge ${getSentimentClass(sentiment)}`;
+    sentEl.textContent = getSentimentLabel(sentiment);
+  }
+}
+
+function updateDurationDisplay(sid) {
+  const s = activeSessions[sid];
+  if (!s || !s._startTs) return;
+  const durEl = document.getElementById(`dur-${sid}`);
+  if (durEl) {
+    const elapsed = Math.floor((Date.now() - s._startTs) / 1000);
+    durEl.textContent = formatDuration(elapsed);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   HISTORY TABLE
+══════════════════════════════════════════════════════════════════════════ */
+function applyFilters() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const outcome = document.getElementById('outcome-filter').value;
+
+  filteredSessions = allSessions.filter(s => {
+    const name = (s.customer_name || '').toLowerCase();
+    const matchSearch = !search || name.includes(search);
+    const matchOutcome = !outcome || s.call_outcome === outcome || s.status === outcome;
+    return matchSearch && matchOutcome;
+  });
+  currentPage = 1;
+  renderHistoryTable();
+}
+
+function renderHistoryTable() {
+  const tbody = document.getElementById('history-tbody');
+  const total = filteredSessions.length;
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const page = filteredSessions.slice(start, start + PAGE_SIZE);
+
+  if (total === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--subtext);">No sessions found.</td></tr>';
+    renderPagination(0);
+    return;
+  }
+
+  tbody.innerHTML = page.map(s => renderHistoryRow(s)).join('');
+  renderPagination(total);
+}
+
+function renderHistoryRow(s) {
+  const name = escHtml(s.customer_name || '—');
+  const amount = `$${formatMoney(s.debt_amount)}`;
+  const outcomeBadge = getOutcomeBadge(s.call_outcome || s.status || 'unknown');
+  const sentClass = getSentimentClass(s.sentiment || 'neutral');
+  const sentEmoji = getSentimentEmoji(s.sentiment || 'neutral');
+  const dur = s.call_duration_seconds ? formatDuration(Math.round(s.call_duration_seconds)) : '—';
+  const dt = s.created_at ? new Date(s.created_at).toLocaleString('en-US', {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '—';
+  return `
+    <tr>
+      <td class="td-name">${name}</td>
+      <td class="td-amount">${amount}</td>
+      <td>${outcomeBadge}</td>
+      <td><span class="sentiment-badge ${sentClass}">${sentEmoji} ${capFirst(s.sentiment||'neutral')}</span></td>
+      <td>${dur}</td>
+      <td style="color:var(--subtext)">${dt}</td>
+      <td><button class="btn-view" onclick="showTranscript('${s.session_id}')">View</button></td>
+    </tr>
+  `;
+}
+
+function renderPagination(total) {
+  const pg = document.getElementById('pagination');
+  const pages = Math.ceil(total / PAGE_SIZE);
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+
+  let html = '';
+  if (currentPage > 1) html += `<button class="page-btn" onclick="goPage(${currentPage-1})">‹</button>`;
+  const start = Math.max(1, currentPage - 2);
+  const end   = Math.min(pages, currentPage + 2);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="page-btn${i===currentPage?' active':''}" onclick="goPage(${i})">${i}</button>`;
+  }
+  if (currentPage < pages) html += `<button class="page-btn" onclick="goPage(${currentPage+1})">›</button>`;
+  html += `<span class="page-info">${total} records</span>`;
+  pg.innerHTML = html;
+}
+
+function goPage(n) { currentPage = n; renderHistoryTable(); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CHARTS
+══════════════════════════════════════════════════════════════════════════ */
+function initSentimentChart() {
+  const ctx = document.getElementById('sentiment-chart').getContext('2d');
+  sentimentChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Cooperative','Neutral','Frustrated','Anger'],
+      datasets: [{
+        data: [0,0,0,0],
+        backgroundColor: ['#00d166','#8892b0','#ffb142','#ff5252'],
+        borderColor: '#1a1d2e',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8892b0', font: { size: 11 }, padding: 8 } }
+      }
+    }
+  });
+}
+
+function updateSentimentChart() {
+  if (!sentimentChartInstance) return;
+  let co=0, ne=0, fr=0, an=0;
+  allSessions.forEach(s => {
+    const sent = s.sentiment || 'neutral';
+    if (sent === 'cooperative') co++;
+    else if (sent === 'neutral') ne++;
+    else if (sent === 'frustrated' || sent === 'frustration') fr++;
+    else if (sent === 'anger') an++;
+    else ne++;
+  });
+  sentimentChartInstance.data.datasets[0].data = [co, ne, fr, an];
+  sentimentChartInstance.update('none');
+}
+
+function buildTranscriptSentimentChart(transcript) {
+  const ctx = document.getElementById('transcript-sentiment-chart').getContext('2d');
+  if (transcriptSentimentChartInstance) { transcriptSentimentChartInstance.destroy(); }
+
+  let co=0, ne=0, fr=0, an=0;
+  (transcript || []).forEach(t => {
+    if (t.role !== 'customer' || !t.sentiment) return;
+    const lbl = t.sentiment.label || 'neutral';
+    if (lbl === 'cooperative') co++;
+    else if (lbl === 'frustrated' || lbl === 'frustration') fr++;
+    else if (lbl === 'anger') an++;
+    else ne++;
+  });
+
+  transcriptSentimentChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Cooperative','Neutral','Frustrated','Anger'],
+      datasets: [{
+        data: [co, ne, fr, an],
+        backgroundColor: ['#00d166','#8892b0','#ffb142','#ff5252'],
+        borderColor: '#1a1d2e',
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#8892b0', font: { size: 10 }, padding: 6 } }
+      }
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   NEW CALL MODAL
+══════════════════════════════════════════════════════════════════════════ */
+function openNewCallModal() {
+  document.getElementById('new-call-modal').classList.add('open');
+  document.getElementById('new-call-form').reset();
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('submit-btn').textContent = 'Call Now';
+}
+
+function closeNewCallModal() {
+  document.getElementById('new-call-modal').classList.remove('open');
+}
+
+document.getElementById('new-call-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeNewCallModal();
+});
+
+async function submitNewCall(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Placing call...';
+
+  const payload = {
+    to_number:     form.to_number.value.trim(),
+    customer_name: form.customer_name.value.trim(),
+    debt_amount:   parseFloat(form.debt_amount.value),
+    account_number: form.account_number.value.trim(),
+    days_overdue:  parseInt(form.days_overdue.value),
+  };
+
+  try {
+    const res = await fetch('/call/initiate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || res.statusText);
+    showToast('Call Placed', `Calling ${payload.customer_name} — Session: ${data.session_id}`, 'success');
+    closeNewCallModal();
+  } catch(err) {
+    showToast('Call Failed', err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Call Now';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TRANSCRIPT MODAL
+══════════════════════════════════════════════════════════════════════════ */
+async function showTranscript(sessionId) {
+  openTranscriptSessionId = sessionId;
+  document.getElementById('transcript-modal').classList.add('open');
+  document.getElementById('t-transcript-panel').innerHTML =
+    '<div style="text-align:center;padding:40px;color:var(--subtext);">Loading...</div>';
+  document.getElementById('t-detail-grid').innerHTML = '';
+  document.getElementById('t-modal-name').textContent = '—';
+  document.getElementById('t-modal-meta').textContent = '—';
+  document.getElementById('t-modal-outcome-badge').innerHTML = '';
+
+  try {
+    const res = await fetch(`/api/sessions/${sessionId}`);
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    renderTranscriptModal(data);
+  } catch(err) {
+    document.getElementById('t-transcript-panel').innerHTML =
+      `<div style="text-align:center;padding:40px;color:var(--danger);">Failed to load: ${escHtml(err.message)}</div>`;
+  }
+}
+
+function renderTranscriptModal(data) {
+  const customer = data.customer || {};
+  const state = data.state || {};
+  const summary = data.summary || {};
+  const transcript = data.transcript || [];
+
+  // Header
+  document.getElementById('t-modal-name').textContent = customer.name || '—';
+  const dtStr = data.created_at ? new Date(data.created_at).toLocaleString() : '';
+  document.getElementById('t-modal-meta').textContent = `Session ${data.session_id} • ${dtStr}`;
+
+  const outcome = summary.call_outcome || state.call_outcome || data.status || 'unknown';
+  document.getElementById('t-modal-outcome-badge').innerHTML = getOutcomeBadge(outcome);
+
+  // Transcript panel
+  const panel = document.getElementById('t-transcript-panel');
+  panel.innerHTML = '';
+  if (transcript.length === 0) {
+    panel.innerHTML = '<div style="text-align:center;padding:32px;color:var(--subtext);">No transcript available.</div>';
+  } else {
+    transcript.forEach(t => appendTranscriptTurn(t, panel));
+    setTimeout(() => { panel.scrollTop = panel.scrollHeight; }, 50);
+  }
+
+  // ── Payment Likelihood card ──────────────────────────────────────────────
+  const pct = summary.payment_likelihood_pct ?? (summary.risk_score != null ? Math.round(summary.risk_score * 100) : null);
+  const cb  = summary.callback_suggestion ?? null;
+  const likelihoodEl = document.getElementById('t-likelihood-section');
+  if (likelihoodEl) {
+    if (pct != null) {
+      const color = pct >= 70 ? 'var(--success)' : pct >= 45 ? 'var(--warning)' : 'var(--danger)';
+      const label = pct >= 70 ? 'High' : pct >= 45 ? 'Medium' : 'Low';
+      let cbHtml = '';
+      if (cb) {
+        if (!cb.should_callback) {
+          cbHtml = `<div class="cb-block cb-stop">
+            <span class="cb-icon">🚫</span>
+            <div><strong>Do Not Call Back</strong><br><span class="cb-reason">${escHtml(cb.reason)}</span></div>
+          </div>`;
+        } else {
+          const days = cb.days_to_wait;
+          const best = (cb.best_days||[]).join(', ');
+          const time = cb.best_time || '—';
+          cbHtml = `<div class="cb-block cb-go">
+            <span class="cb-icon">📅</span>
+            <div>
+              <strong>Call back in ${days} day${days!==1?'s':''}</strong>
+              &nbsp;<span class="cb-tag">Best: ${best}</span>
+              <br><span class="cb-time">⏰ ${time}</span>
+              <br><span class="cb-reason">${escHtml(cb.reason)}</span>
+            </div>
+          </div>`;
+        }
+      }
+      likelihoodEl.innerHTML = `
+        <div class="likelihood-card">
+          <div class="lk-header">Payment Likelihood</div>
+          <div class="lk-body">
+            <div class="lk-gauge-wrap">
+              <svg viewBox="0 0 120 70" class="lk-gauge">
+                <path d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="var(--border)" stroke-width="10" stroke-linecap="round"/>
+                <path d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round"
+                  stroke-dasharray="${pct * 1.57} 157" />
+              </svg>
+              <div class="lk-pct" style="color:${color}">${pct.toFixed(1)}%</div>
+              <div class="lk-label" style="color:${color}">${label}</div>
+            </div>
+            ${cbHtml}
+          </div>
+        </div>`;
+      likelihoodEl.style.display = 'block';
+    } else {
+      likelihoodEl.style.display = 'none';
+    }
+  }
+
+  // ── Call Details grid ─────────────────────────────────────────────────────
+  const grid = document.getElementById('t-detail-grid');
+  const dur = summary.call_duration_seconds ? formatDuration(Math.round(summary.call_duration_seconds)) : (state.call_duration_seconds ? formatDuration(Math.round(state.call_duration_seconds)) : '—');
+  const details = [
+    ['Duration', dur],
+    ['Outcome', formatOutcome(outcome)],
+    ['Debt Amount', customer.debt_amount ? `$${formatMoney(customer.debt_amount)}` : '—'],
+    ['Dominant Sentiment', capFirst(summary.sentiment || state.dominant_sentiment || '—')],
+    ['Payment Plan', summary.plan_type ? summary.plan_type.replace(/_/g,' ') : '—'],
+    ['Payment Amount', summary.payment_amount_agreed ? `$${formatMoney(summary.payment_amount_agreed)}` : '—'],
+    ['Promise Date', summary.payment_promise_date || '—'],
+    ['Turn Count', summary.turn_count ?? state.turn_count ?? '—'],
+    ['Refusal Count', summary.refusal_count ?? state.refusal_count ?? '—'],
+    ['Anger Escalations', summary.anger_escalations ?? state.anger_escalations ?? '—'],
+  ];
+  grid.innerHTML = details.map(([k,v]) => `
+    <div class="detail-row">
+      <span class="detail-key">${k}</span>
+      <span class="detail-val">${v}</span>
+    </div>
+  `).join('');
+
+  // Chart
+  buildTranscriptSentimentChart(transcript);
+}
+
+function appendTranscriptTurn(turn, panelEl) {
+  const panel = panelEl || document.getElementById('t-transcript-panel');
+  const div = document.createElement('div');
+  div.className = `t-turn ${turn.role}`;
+
+  const sentiment = turn.sentiment;
+  const sentLine = (turn.role === 'customer' && sentiment)
+    ? `<div class="t-bubble-sentiment">${getSentimentEmoji(sentiment.label)} ${capFirst(sentiment.label||'neutral')} (${(sentiment.score||0).toFixed(2)})</div>`
+    : '';
+
+  div.innerHTML = `
+    <div class="t-bubble">
+      <div class="t-bubble-label">${turn.role === 'agent' ? 'Sarah' : 'Customer'}</div>
+      ${escHtml(turn.text || '')}
+      ${sentLine}
+    </div>
+  `;
+  panel.appendChild(div);
+}
+
+function closeTranscriptModal() {
+  document.getElementById('transcript-modal').classList.remove('open');
+  openTranscriptSessionId = null;
+  if (transcriptSentimentChartInstance) {
+    transcriptSentimentChartInstance.destroy();
+    transcriptSentimentChartInstance = null;
+  }
+}
+
+document.getElementById('transcript-modal').addEventListener('click', function(e) {
+
+  if (e.target === this) closeTranscriptModal();
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════════════════════ */
+function showToast(title, message, type = 'info') {
+  const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `
+    <div class="toast-icon">${icons[type]||'ℹ'}</div>
+    <div class="toast-text">
+      <div class="toast-title">${escHtml(title)}</div>
+      <div>${escHtml(message)}</div>
+    </div>
+  `;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FORMATTING HELPERS
+══════════════════════════════════════════════════════════════════════════ */
+function formatDuration(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2,'0')}`;
+}
+
+function formatMoney(v) {
+  const n = parseFloat(v) || 0;
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function capFirst(s) {
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getSentimentClass(label) {
+  const map = {
+    cooperative: 's-cooperative',
+    neutral: 's-neutral',
+    frustrated: 's-frustrated',
+    frustration: 's-frustrated',
+    anger: 's-anger',
+  };
+  return map[label] || 's-neutral';
+}
+
+function getSentimentLabel(label) {
+  const map = {
+    cooperative: '😊 Cooperative',
+    neutral: '😐 Neutral',
+    frustrated: '😤 Frustrated',
+    frustration: '😤 Frustrated',
+    anger: '😡 Anger',
+  };
+  return map[label] || '😐 Neutral';
+}
+
+function getSentimentEmoji(label) {
+  const map = {
+    cooperative: '😊',
+    neutral: '😐',
+    frustrated: '😤',
+    frustration: '😤',
+    anger: '😡',
+  };
+  return map[label] || '😐';
+}
+
+function getOutcomeBadge(outcome) {
+  const map = {
+    promise_to_pay: ['o-promise', '✓ Promise'],
+    closing:        ['o-promise', '✓ Closed'],
+    refused:        ['o-refused', '✗ Refused'],
+    dispute:        ['o-dispute', '⚠ Dispute'],
+    already_paid:   ['o-paid',    '$ Already Paid'],
+    opt_out:        ['o-optout',  '★ Opt-Out'],
+    voicemail:      ['o-unknown', '✉ Voicemail'],
+    wrong_person:   ['o-unknown', '? Wrong Person'],
+    in_progress:    ['o-inprogress', '● In Progress'],
+    ringing:        ['o-inprogress', '● Ringing'],
+    answered:       ['o-inprogress', '● Answered'],
+    call_dropped:   ['o-refused', '⚡ Dropped'],
+  };
+  const [cls, label] = map[outcome] || ['o-unknown', '? ' + capFirst(outcome || 'Unknown')];
+  return `<span class="outcome-badge ${cls}">${label}</span>`;
+}
+
+function formatOutcome(outcome) {
+  const map = {
+    promise_to_pay: 'Promise to Pay',
+    closing: 'Closed',
+    refused: 'Refused',
+    dispute: 'Dispute',
+    already_paid: 'Already Paid',
+    opt_out: 'Opt-Out',
+    voicemail: 'Voicemail',
+    wrong_person: 'Wrong Person',
+    in_progress: 'In Progress',
+    call_dropped: 'Call Dropped',
+  };
+  return map[outcome] || capFirst(outcome || 'Unknown');
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BULK UPLOAD
+══════════════════════════════════════════════════════════════════════════ */
+let bulkRows = [];
+
+function openBulkModal() {
+  bulkRows = [];
+  document.getElementById('bulk-modal').classList.add('open');
+  document.getElementById('bulk-preview-section').style.display = 'none';
+  document.getElementById('bulk-file-input').value = '';
+  document.getElementById('drop-zone').classList.remove('dragover');
+  document.getElementById('drop-zone-label').textContent = 'Drop Excel or CSV file here, or click to browse';
+}
+
+function closeBulkModal() {
+  document.getElementById('bulk-modal').classList.remove('open');
+}
+
+function handleDrop(files) {
+  if (files && files.length > 0) handleBulkFile(files[0]);
+}
+
+function handleBulkFile(file) {
+  if (!file) return;
+  document.getElementById('drop-zone-label').textContent = `Uploading "${file.name}"…`;
+  const formData = new FormData();
+  formData.append('file', file);
+  fetch('/api/bulk-upload', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showToast('Upload Error', data.error, 'error'); document.getElementById('drop-zone-label').textContent = 'Drop Excel or CSV file here, or click to browse'; return; }
+      bulkRows = data.rows || [];
+      renderBulkPreview(bulkRows);
+      document.getElementById('drop-zone-label').textContent = `✓ "${file.name}" — ${bulkRows.length} rows loaded`;
+    })
+    .catch(err => { showToast('Upload Error', String(err), 'error'); document.getElementById('drop-zone-label').textContent = 'Drop Excel or CSV file here, or click to browse'; });
+}
+
+function renderBulkPreview(rows) {
+  const section = document.getElementById('bulk-preview-section');
+  const tbody = document.getElementById('bulk-preview-body');
+  const countEl = document.getElementById('bulk-row-count');
+  tbody.innerHTML = '';
+  rows.slice(0, 8).forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const name = r.customer_name || r.name || '—';
+    const phone = r.to_number || r.phone || '—';
+    tr.innerHTML = `<td>${i + 1}</td><td>${escHtml(name)}</td><td>${escHtml(phone)}</td><td>$${(+r.debt_amount || 0).toFixed(2)}</td><td>${escHtml(r.account_number || '—')}</td>`;
+    tbody.appendChild(tr);
+  });
+  if (rows.length > 8) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" style="text-align:center;color:var(--subtext);font-style:italic;">…and ${rows.length - 8} more rows</td>`;
+    tbody.appendChild(tr);
+  }
+  countEl.textContent = rows.length;
+  const btnCount = document.getElementById('bulk-row-count-btn');
+  if (btnCount) btnCount.textContent = rows.length;
+  section.style.display = 'block';
+}
+
+function submitBulkQueue() {
+  if (!bulkRows.length) { showToast('No Data', 'Please upload a file first', 'warning'); return; }
+  const delay = parseInt(document.getElementById('bulk-delay-input').value, 10) || 10;
+  const maxConc = parseInt(document.getElementById('bulk-conc-input').value, 10) || 3;
+  fetch('/api/queue/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows: bulkRows, delay_seconds: delay, max_concurrent: maxConc }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) { showToast('Queue Error', data.error, 'error'); return; }
+      showToast('Queued', `${data.added} calls added to queue`, 'success');
+      closeBulkModal();
+      updateQueueBar(data.queue);
+    })
+    .catch(err => showToast('Queue Error', String(err), 'error'));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   QUEUE CONTROLS
+══════════════════════════════════════════════════════════════════════════ */
+function queueStart() {
+  fetch('/api/queue/start', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      showToast('Queue Started', 'Processing calls…', 'success');
+      updateQueueBar(data.queue);
+    })
+    .catch(err => showToast('Error', String(err), 'error'));
+}
+
+function queuePause() {
+  fetch('/api/queue/pause', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      showToast('Queue Paused', 'No new calls will be initiated', 'warning');
+      updateQueueBar(data.queue);
+    })
+    .catch(err => showToast('Error', String(err), 'error'));
+}
+
+function queueClear() {
+  if (!confirm('Clear all pending calls from the queue?')) return;
+  fetch('/api/queue/clear', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      showToast('Queue Cleared', 'Pending calls removed', 'info');
+      updateQueueBar(data.queue);
+    })
+    .catch(err => showToast('Error', String(err), 'error'));
+}
+
+function loadQueueStatus() {
+  fetch('/api/queue')
+    .then(r => r.json())
+    .then(data => updateQueueBar(data))
+    .catch(() => {});
+}
+
+function updateQueueBar(data) {
+  if (!data) return;
+  // Server nests counts under data.counts
+  const c = data.counts || data;
+  const pending = c.pending || 0;
+  const calling = (c.calling || 0) + (c.initiated || 0);
+  const done = c.done || c.completed || 0;
+  const failed = c.failed || 0;
+  const total = (data.total) || (pending + calling + done + failed);
+  const bar = document.getElementById('queue-bar');
+  if (total === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('qbar-pending').textContent = `${pending} pending`;
+  document.getElementById('qbar-calling').textContent = `${calling} calling`;
+  document.getElementById('qbar-done').textContent = `${done} done`;
+  document.getElementById('qbar-fail').textContent = `${failed} failed`;
+  const pct = total > 0 ? Math.round((done + failed) / total * 100) : 0;
+  document.getElementById('qbar-fill').style.width = pct + '%';
+  const startBtn = document.getElementById('qbar-start-btn');
+  const pauseBtn = document.getElementById('qbar-pause-btn');
+  if (data.running) {
+    startBtn.style.display = 'none';
+    pauseBtn.style.display = '';
+  } else {
+    startBtn.style.display = '';
+    pauseBtn.style.display = 'none';
+  }
+  // Store items for detail modal
+  window._queueItems = data.items || [];
+}
+
+function openQueueDetailModal() {
+  const modal = document.getElementById('queue-detail-modal');
+  modal.classList.add('open');
+  renderQueueDetail(window._queueItems || []);
+}
+
+function closeQueueDetailModal() {
+  document.getElementById('queue-detail-modal').classList.remove('open');
+}
+
+function renderQueueDetail(items) {
+  const tbody = document.getElementById('qdetail-tbody');
+  tbody.innerHTML = '';
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--subtext);">Queue is empty</td></tr>';
+    return;
+  }
+  const statusDot = { pending: '⬜', calling: '🔵', initiated: '🔵', done: '✅', completed: '✅', failed: '❌' };
+  items.forEach((item, i) => {
+    const tr = document.createElement('tr');
+    const name = item.customer_name || item.name || '—';
+    const phone = item.to_number || item.phone || '—';
+    tr.innerHTML = `<td>${i + 1}</td><td>${escHtml(name)}</td><td>${escHtml(phone)}</td><td>$${(+item.debt_amount || 0).toFixed(2)}</td><td>${statusDot[item.status] || '⬜'} ${capFirst(item.status || 'pending')}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+
+<!-- ── Bulk Upload Modal ──────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="bulk-modal">
+  <div class="modal-box bulk-modal-box">
+    <div class="modal-title">📊 Bulk Upload Calls</div>
+
+    <div id="drop-zone" class="drop-zone">
+      <div style="font-size:2rem;margin-bottom:8px;">📁</div>
+      <div id="drop-zone-label">Drop Excel or CSV file here, or click to browse</div>
+      <div style="font-size:0.74rem;color:var(--subtext);margin-top:6px;">Supported: .xlsx, .csv — columns: name, phone, debt_amount, account_number, days_overdue</div>
+      <input type="file" id="bulk-file-input" accept=".xlsx,.csv" style="display:none;" onchange="handleBulkFile(this.files[0])">
+    </div>
+
+    <div id="bulk-preview-section" style="display:none;margin-top:16px;">
+      <div style="font-size:0.8rem;color:var(--subtext);margin-bottom:6px;">Preview — <span id="bulk-row-count">0</span> rows detected</div>
+      <div style="overflow-x:auto;max-height:220px;overflow-y:auto;">
+        <table class="preview-table" style="width:100%;">
+          <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Amount</th><th>Account</th></tr></thead>
+          <tbody id="bulk-preview-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:16px;margin-top:16px;">
+      <div style="flex:1;">
+        <label class="form-label">Delay between calls (sec)</label>
+        <input type="number" class="form-input" id="bulk-delay-input" value="10" min="5" max="120">
+      </div>
+      <div style="flex:1;">
+        <label class="form-label">Max concurrent calls</label>
+        <input type="number" class="form-input" id="bulk-conc-input" value="3" min="1" max="10">
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-primary" onclick="submitBulkQueue()">Queue <span id="bulk-row-count-btn"></span> Calls</button>
+      <button class="btn-secondary" onclick="closeBulkModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Queue Detail Modal ────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="queue-detail-modal">
+  <div class="modal-box" style="max-width:700px;max-height:80vh;display:flex;flex-direction:column;">
+    <div class="modal-title">📋 Queue Details</div>
+    <div style="overflow-y:auto;flex:1;margin-top:12px;">
+      <table class="preview-table" style="width:100%;">
+        <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="qdetail-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions" style="margin-top:12px;">
+      <button class="btn-secondary" onclick="closeQueueDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
